@@ -6,8 +6,9 @@ from pathlib import Path
 from image_iterator import ImageIterator
 import pandas as pd
 import matplotlib.pyplot as plt
-from statistics import mean
-
+import numpy as np
+import os
+from utils import get_statistics, reject_outliers
 
 def define_arguments(parser):
     parser.add_argument("-d", "--dir", type=Path,
@@ -17,22 +18,19 @@ def define_arguments(parser):
     return parser
 
 def get_aspect_ratios(dir, ignore):
-    """Returns a list of aspect ratios of all images found recursively in the given directory"""
+    """Returns a two equally sized numpy arrays. First holds the aspect ratios of all images found recursively in the
+    given directory. The second one holds their filenames without the extension."""
     asp_ratios = []
+    img_names = []
 
     images = ImageIterator(dir, ignore)
     for image in images:
         with Image.open(image) as img:
             width, height = img.size
             asp_ratios.append(width/height)
-    return asp_ratios
-
-def get_statistics(list):
-    mean_val = mean(list)
-    min_val = min(list)
-    max_val = max(list)
-
-    return mean_val, min_val, max_val
+            # img_names.append(os.path.splitext(os.path.basename(image))[0])
+            img_names.append(image)
+    return np.array(asp_ratios), np.array(img_names)
 
 def plot_aspect_ratio_histogram(aspect_ratios):
     asp_ratios_series = pd.Series(aspect_ratios)
@@ -43,16 +41,27 @@ def plot_aspect_ratio_histogram(aspect_ratios):
     plt.grid(axis='y', alpha=0.75)
     plt.show()
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser = define_arguments(parser)
     args = parser.parse_args()
 
-    aspect_ratios = get_aspect_ratios(args.dir, args.ignore)
+    aspect_ratios, image_names = get_aspect_ratios(args.dir, args.ignore)
+
     mean_val, min_val, max_val = get_statistics(aspect_ratios)
     print(f"Mean = {mean_val}, Min = {min_val}, Max = {max_val}")
     plot_aspect_ratio_histogram(aspect_ratios)
 
+    aspect_ratios_filtered, rejected_indices = reject_outliers(aspect_ratios)
 
+    mean_val, min_val, max_val = get_statistics(aspect_ratios_filtered)
+    print(f"Mean = {mean_val}, Min = {min_val}, Max = {max_val}")
+    plot_aspect_ratio_histogram(aspect_ratios_filtered)
+
+    # a = image_names[rejected_indices]
+    # b = aspect_ratios[rejected_indices]
+    # dict = {}
+    # for A, B in zip(a, b):
+    #     dict[A] = B
+    # print(dict)
 
