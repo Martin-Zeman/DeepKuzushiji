@@ -3,7 +3,7 @@
 from PIL import Image
 import argparse
 from pathlib import Path
-from image_iterator import ImageIterator
+from file_iterator import FileIterator
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
@@ -23,7 +23,7 @@ def get_aspect_ratios(dir, ignore):
     asp_ratios = []
     img_names = []
 
-    images = ImageIterator(dir, ignore)
+    images = FileIterator(dir, ignore_list=ignore)
     for image in images:
         with Image.open(image) as img:
             width, height = img.size

@@ -8,6 +8,7 @@ from utils import reject_outliers, get_statistics
 from distutils import dir_util
 import time
 from threading import Thread
+from csv_editor import erase_references
 
 
 class TreeCopyThread(Thread):
@@ -43,6 +44,8 @@ def define_arguments(parser):
     parser.add_argument("-o", "--out", type=Path,
                         default=Path(__file__).absolute().parent.parent / "Datasets/Japanese_Classics_Preprocessed",
                         help="Output path to the root of the preprocessed dataset directory")
+    parser.add_argument("-c", "--copy", dest='copy', action='store_true')
+    parser.set_defaults(copy=False)
     parser.add_argument("-i", "--ignore", nargs="*", type=str)
     return parser
 
@@ -51,14 +54,18 @@ if __name__ == "__main__":
     parser = define_arguments(parser)
     args = parser.parse_args()
 
-    aspect_ratios, image_names = get_aspect_ratios(args.dir, args.ignore)
-    aspect_ratios_filtered, rejected_indices = reject_outliers(aspect_ratios)
+    # Make a copy to be processed if needed
+    if args.copy:
+        copy_thread = TreeCopyThread(str(args.dir), str(args.out))
+        progress = ProgressThread(copy_thread)
+        copy_thread.start()
+        progress.start()
+        progress.join()
 
+    aspect_ratios, image_names = get_aspect_ratios(args.out, args.ignore)
+    aspect_ratios_filtered, rejected_indices = reject_outliers(aspect_ratios)
     mean_val, _, _ = get_statistics(aspect_ratios_filtered)
 
-    copy_thread = TreeCopyThread(str(args.dir), str(args.out))
-    progress = ProgressThread(copy_thread)
-    copy_thread.start()
-    progress.start()
-    progress.join()
+    rejected_images_paths = image_names[rejected_indices]
+    erase_references(str(args.dir), rejected_images_paths)
 
