@@ -67,5 +67,5 @@ if __name__ == "__main__":
     mean_val, _, _ = get_statistics(aspect_ratios_filtered)
 
     rejected_images_paths = image_names[rejected_indices]
-    erase_references(str(args.dir), rejected_images_paths)
+    erase_references(str(args.out), rejected_images_paths)
 
