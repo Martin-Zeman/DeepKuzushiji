@@ -31,3 +31,11 @@ def get_image_name(image_path):
         return None
     basename = os.path.basename(image_path)
     return os.path.splitext(basename)[0]
+
+def delete_images(images):
+    for image in images:
+        try:
+            os.remove(image)
+        except OSError:
+            print(f"Cannot delete {image}!")
+    print("Finished deleting images!")

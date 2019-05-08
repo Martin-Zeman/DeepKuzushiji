@@ -4,7 +4,7 @@ from aspect_ratios import get_aspect_ratios
 import argparse
 from pathlib import Path
 import numpy as np
-from utils import reject_outliers, get_statistics
+from utils import reject_outliers, get_statistics, delete_images
 from distutils import dir_util
 import time
 from threading import Thread
@@ -49,6 +49,7 @@ def define_arguments(parser):
     parser.add_argument("-i", "--ignore", nargs="*", type=str)
     return parser
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser = define_arguments(parser)
@@ -68,4 +69,5 @@ if __name__ == "__main__":
 
     rejected_images_paths = image_names[rejected_indices]
     erase_references(str(args.out), rejected_images_paths)
+    delete_images(rejected_images_paths)
 
