@@ -2,6 +2,7 @@ import pandas as pd
 from pandas.errors import ParserError
 from utils import get_book_id, get_image_name
 from file_iterator import FileIterator
+import os
 
 
 def erase_references(root_dir, image_paths):
@@ -28,4 +29,28 @@ def erase_references(root_dir, image_paths):
         df.to_csv(file, encoding='ISO-8859-1')
     print(f"Finished deleting references!")
 
+def get_csv_path_from_image_path(image_path):
+    dir = os.path.split(image_path)
+    dir_of_csv = dir[0].split("/")[0:-1]
+    dir_of_csv = "/".join(dir_of_csv)
+    book_id = get_book_id(image_path)
+    csv_filename = "".join([book_id, "_coordinate.csv"])
+    csv_path = "/".join([dir_of_csv, csv_filename])
+    return csv_path
 
+
+def resize_bbs(image_path, multiplier_w, multiplier_h):
+    csv_path = get_csv_path_from_image_path(image_path)
+    try:
+        df = pd.read_csv(csv_path, encoding='ISO-8859-1')
+    except ParserError:
+        print(f"Fatal Error while parsing file {csv_path}. Bounding boxes not adjusted!")
+        return
+    image_name = get_image_name(image_path)
+
+    df.loc[df.Image == image_name, "X"] *= multiplier_w
+    df.loc[df.Image == image_name, "Y"] *= multiplier_h
+    df.loc[df.Image == image_name, "Width"] *= multiplier_w
+    df.loc[df.Image == image_name, "Height"] *= multiplier_h
+
+    df.to_csv(csv_path, encoding='ISO-8859-1', index=False)

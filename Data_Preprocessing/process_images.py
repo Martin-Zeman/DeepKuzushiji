@@ -1,10 +1,12 @@
 import cv2
 import argparse
 from pathlib import Path
+import os
+from csv_editor import resize_bbs
 
 
 
-def get_new_dims(dims, max_h, yolo_dim):
+def get_new_dims(img, max_h=1248, cnn_input_size=416):
     """
     Computes the width to match the maximum height while keeping the aspect ratio. Then it finds the closest multiple of
      the yolo_dim for this new width.
@@ -13,39 +15,72 @@ def get_new_dims(dims, max_h, yolo_dim):
     :param yolo_dim:
     :return:
     """
-    w, h = dims
+    h, w, _ = img.shape
     assert h > max_h, "Height of an image unexpectedly small!"
     factor = h / max_h
     new_w = w / factor
-    w_mul = new_w // yolo_dim
-    rem_curr = abs(new_w - w_mul * yolo_dim)
-    rem_next = abs(new_w - (w_mul + 1) * yolo_dim)
-    new_w = w_mul * yolo_dim if rem_curr < rem_next else (w_mul + 1) * yolo_dim
+    w_mul = new_w // cnn_input_size
+    rem_curr = abs(new_w - w_mul * cnn_input_size)
+    rem_next = abs(new_w - (w_mul + 1) * cnn_input_size)
+    new_w = w_mul * cnn_input_size if rem_curr < rem_next else (w_mul + 1) * cnn_input_size
 
     try:
         new_w = int(new_w)
         max_h = int(max_h)
     except ValueError:
-        print("Could not convert new image dimensions to integer! Setting them to default size")
-        new_w = int(416)
-        max_h = int(832)
-    return new_w, max_h
+        print("Could not convert new image dimensions to integer! Setting them to default size!")
+        new_w = int(cnn_input_size)
+        max_h = int(2 * cnn_input_size)
+    multiplier_w = new_w / w
+    multiplier_h = max_h / h
+    return new_w, max_h, multiplier_w, multiplier_h
 
-def resize_image(img, dims):
+def resize_image_to_dims(img, dims):
     new_w, new_h = dims
     resized_img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_CUBIC)
     return resized_img
 
-def cropout_of_image(img):
-    # TODO
-    crop_img = img[0:416, 0:416]
-    cv2.imshow("croppped", crop_img)
-    cv2.waitKey(0)
+def resize_image_by_multiplier(img, multiplier_w, multiplier_h):
+    h, w, _ = img.shape
+    resized_img = cv2.resize(img, (w*multiplier_w, h*multiplier_h), interpolation=cv2.INTER_CUBIC)
+    return resized_img
+
+def divide_image_into_crops(img, cnn_input_size=416):
+    height, width, _ = img.shape
+    assert height >= cnn_input_size and width >= cnn_input_size, "One of the image dimensions is too small!"
+    crops = []
+    height_crops = height // cnn_input_size
+    width_crops = width // cnn_input_size
+    for h in range(height_crops):
+        for w in range(width_crops):
+            crops.append(img[h*cnn_input_size:(h+1)*cnn_input_size, w*cnn_input_size:(w+1)*cnn_input_size])
+    return crops
+
+def replace_image_with_crops(image_path, crops):
+    dir = os.path.dirname(image_path)
+    basename = os.path.splitext(os.path.basename(image_path))
+    basename_wo_ext = basename[0]
+    ext = basename[1]
+
+    for i, crop in enumerate(crops):
+        crop_name = "".join([basename_wo_ext, "_crop_", str(i), ext])
+        crop_path = os.path.join(dir, crop_name)
+        print(f"Saving {crop_path}")
+        cv2.imwrite(crop_path, crop)
+
+    # try:
+    #     os.remove(image_path)
+    # except OSError:
+    #     print(f"Failed to remove {image_path}")
 
 
 def process_image(image_path):
-    None
-    # Here I will call all the other functions. First open the image. Make sure to include try and except
+    img = cv2.imread(image_path)
+    new_width, new_height, width_multiplier, height_multiplier = get_new_dims(img, 1248, 416)
+    resized_image = resize_image_to_dims(img, (new_width, new_height))
+    crops = divide_image_into_crops(resized_image)
+    replace_image_with_crops(image_path, crops)
+    resize_bbs(image_path, width_multiplier, height_multiplier)
 
 def define_arguments(parser):
     parser.add_argument("-i", "--image", type=Path,
@@ -62,9 +97,4 @@ if __name__ == "__main__":
     except ValueError:
         print("Cannot convert the path to string!")
     else:
-        img = cv2.imread(image_path)
-        # cropout_of_image(img)
-        height, width, _ = img.shape
-        new_width, new_height = get_new_dims((width, height), 1248, 416)
-        resized_image = resize_image(img, (new_width, new_height))
-        cv2.imwrite("/home/thiscord/Documents/DeepKuzushiji/Datasets/Japanese_Classics_Preprocessed/resized.jpg", resized_image)
+        process_image(image_path)
