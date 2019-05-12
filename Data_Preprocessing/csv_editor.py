@@ -30,6 +30,7 @@ def erase_references(root_dir, image_paths):
     print(f"Finished deleting references!")
 
 def get_csv_path_from_image_path(image_path):
+    # TODO: look if there's a better way to do the joining
     dir = os.path.split(image_path)
     dir_of_csv = dir[0].split("/")[0:-1]
     dir_of_csv = "/".join(dir_of_csv)
@@ -39,7 +40,7 @@ def get_csv_path_from_image_path(image_path):
     return csv_path
 
 
-def resize_bbs(image_path, multiplier_w, multiplier_h):
+def resize_bbs_in_csv(image_path, multiplier_w, multiplier_h):
     csv_path = get_csv_path_from_image_path(image_path)
     try:
         df = pd.read_csv(csv_path, encoding='ISO-8859-1')
@@ -54,3 +55,12 @@ def resize_bbs(image_path, multiplier_w, multiplier_h):
     df.loc[df.Image == image_name, "Height"] *= multiplier_h
 
     df.to_csv(csv_path, encoding='ISO-8859-1', index=False)
+
+def replace_images_with_crops_in_csv(image_path, names_to_crops, crop_to_orig, orig_to_crop):
+    csv_path = get_csv_path_from_image_path(image_path)
+    try:
+        df = pd.read_csv(csv_path, encoding='ISO-8859-1')
+    except ParserError:
+        print(f"Fatal Error while parsing file {csv_path}. Bounding boxes not adjusted!")
+        return
+    # TODO
