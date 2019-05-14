@@ -50,7 +50,7 @@ def divide_image_into_crops(img, cnn_input_size=416):
 
     :param img:
     :param cnn_input_size:
-    :return: list of 3 element tuples where (image, height span tuple, width span tuple)
+    :return: list of 4 element lists where (image, height span tuple, width span tuple, name of the crop)
     """
     height, width, _ = img.shape
     assert height >= cnn_input_size and width >= cnn_input_size, "One of the image dimensions is too small!"
@@ -61,7 +61,7 @@ def divide_image_into_crops(img, cnn_input_size=416):
         for w in range(width_crops):
             h_span = (h*cnn_input_size, (h+1)*cnn_input_size)
             w_span = (w*cnn_input_size, (w+1)*cnn_input_size)
-            crops.append((img[h_span[0]:h_span[1], w_span[0]:w_span[1]], h_span, w_span))
+            crops.append([img[h_span[0]:h_span[1], w_span[0]:w_span[1]], h_span, w_span, "name_placeholder"])
     return crops
 
 def replace_image_with_crops(image_path, crops):
@@ -70,7 +70,7 @@ def replace_image_with_crops(image_path, crops):
     :param image_path:
     :param crops:
     :return: Three dictionaries:
-    1. Dictionary mapping from the newly created image crop names to the crop objects
+    1. Dictionary mapping from the image path to its crop objects
     2. Dictionary mapping from the cropped image name to the original image name
     3. Dictionary mapping from the original image name to all of its crops
     """
@@ -78,13 +78,19 @@ def replace_image_with_crops(image_path, crops):
     basename = os.path.splitext(os.path.basename(image_path))
     basename_wo_ext = basename[0]
     ext = basename[1]
-    file_name_to_crops = {}
+    image_path_to_crops = {}
     crop_names_to_orig_names = {}
     orig_names_to_crop_names = {}
 
     for i, crop in enumerate(crops):
         crop_name = "".join([basename_wo_ext, "_crop_", str(i), ext])
-        file_name_to_crops[crop_name] = crop
+        crop[-1] = crop_name
+
+        if image_path not in image_path_to_crops.keys():
+            image_path_to_crops[image_path] = [crop]
+        else:
+            image_path_to_crops[image_path].append(crop)
+
         crop_names_to_orig_names[crop_name] = basename_wo_ext
         if basename_wo_ext not in orig_names_to_crop_names.keys():
             orig_names_to_crop_names[basename_wo_ext] = [crop_name]
@@ -98,18 +104,18 @@ def replace_image_with_crops(image_path, crops):
     #     os.remove(image_path)
     # except OSError:
     #     print(f"Failed to remove {image_path}")
-    return file_name_to_crops, crop_names_to_orig_names, orig_names_to_crop_names
+    return image_path_to_crops, crop_names_to_orig_names, orig_names_to_crop_names
 
 
 def process_image(image_path):
-    """Main function representing the processing pipeline for a singe image."""
+    """Main function representing the processing pipeline for a single image."""
     img = cv2.imread(image_path)
     new_width, new_height, width_multiplier, height_multiplier = get_new_dims(img, 1248, 416)
     resized_image = resize_image_to_dims(img, (new_width, new_height))
     crops = divide_image_into_crops(resized_image)
-    names_to_crops, crop_to_orig, orig_to_crop = replace_image_with_crops(image_path, crops)
-    replace_images_with_crops_in_csv(image_path, names_to_crops, crop_to_orig, orig_to_crop)
+    paths_to_crops, crop_to_orig, orig_to_crop = replace_image_with_crops(image_path, crops)
     #resize_bbs_in_csv(image_path, width_multiplier, height_multiplier)
+    replace_images_with_crops_in_csv(paths_to_crops, crop_to_orig, orig_to_crop)
 
 def define_arguments(parser):
     parser.add_argument("-i", "--image", type=Path,

@@ -56,11 +56,26 @@ def resize_bbs_in_csv(image_path, multiplier_w, multiplier_h):
 
     df.to_csv(csv_path, encoding='ISO-8859-1', index=False)
 
-def replace_images_with_crops_in_csv(image_path, names_to_crops, crop_to_orig, orig_to_crop):
-    csv_path = get_csv_path_from_image_path(image_path)
-    try:
-        df = pd.read_csv(csv_path, encoding='ISO-8859-1')
-    except ParserError:
-        print(f"Fatal Error while parsing file {csv_path}. Bounding boxes not adjusted!")
-        return
-    # TODO
+def replace_images_with_crops_in_csv(image_path_to_crops, crop_to_orig, orig_to_crop):
+    for image_path in image_path_to_crops.keys():
+        csv_path = get_csv_path_from_image_path(image_path)
+        try:
+            df = pd.read_csv(csv_path, encoding='ISO-8859-1')
+        except ParserError:
+            print(f"Fatal Error while parsing file {csv_path}. Original not replaced with crops for {image_path}!")
+            return
+        image_name = get_image_name(image_path)
+        image_data = df.loc[df.Image == image_name, ["Unicode", "X", "Y", "Width", "Height"]]
+        df.drop(df.Image == image_name, axis=0)
+
+        crops = image_path_to_crops[image_path]
+        for crop in crops:
+            crop_name = crop[-1]
+            height_span = crop[1]
+            weight_span = crop[2]
+            # print(f"crop name  =  {crop_name}")
+            # print(f"height span = {height_span}")
+            # print(f"weight span = {weight_span}")
+            for _, row in image_data.iterrows():
+                print(f"Unicode {row['Unicode']} X {row['X']} Y {row['Y']} Height {row['Height']} Width {row['Width']}")
+                # TODO
