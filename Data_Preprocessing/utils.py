@@ -39,3 +39,17 @@ def delete_images(images):
         except OSError:
             print(f"Cannot delete {image}!")
     print("Finished deleting images!")
+
+
+def is_fully_within_crop(crop_spans, character_xy, character_dims):
+    ret = False
+    height_span, width_span = crop_spans
+    char_x, char_y = character_xy
+    char_height, char_width = character_dims
+
+    fits_on_x_axis = char_x >= width_span[0] and (char_x + char_width) <= width_span[1]
+    fits_on_y_axis = char_y >= height_span[0] and (char_y + char_height) <= height_span[1]
+
+    if fits_on_x_axis and fits_on_y_axis:
+        ret = True
+    return ret

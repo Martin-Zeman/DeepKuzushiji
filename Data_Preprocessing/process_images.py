@@ -5,7 +5,6 @@ import os
 from csv_editor import resize_bbs_in_csv, replace_images_with_crops_in_csv
 
 
-
 def get_new_dims(img, max_h=1248, cnn_input_size=416):
     """
     Computes the width to match the maximum height while keeping the aspect ratio. Then it finds the closest multiple of
@@ -35,15 +34,18 @@ def get_new_dims(img, max_h=1248, cnn_input_size=416):
     multiplier_h = max_h / h
     return new_w, max_h, multiplier_w, multiplier_h
 
+
 def resize_image_to_dims(img, dims):
     new_w, new_h = dims
     resized_img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_CUBIC)
     return resized_img
 
+
 def resize_image_by_multiplier(img, multiplier_w, multiplier_h):
     h, w, _ = img.shape
     resized_img = cv2.resize(img, (w*multiplier_w, h*multiplier_h), interpolation=cv2.INTER_CUBIC)
     return resized_img
+
 
 def divide_image_into_crops(img, cnn_input_size=416):
     """
@@ -57,12 +59,22 @@ def divide_image_into_crops(img, cnn_input_size=416):
     crops = []
     height_crops = height // cnn_input_size
     width_crops = width // cnn_input_size
+
+    # Crops with the stride of cnn_input_size
     for h in range(height_crops):
         for w in range(width_crops):
             h_span = (h*cnn_input_size, (h+1)*cnn_input_size)
             w_span = (w*cnn_input_size, (w+1)*cnn_input_size)
             crops.append([img[h_span[0]:h_span[1], w_span[0]:w_span[1]], h_span, w_span, "name_placeholder"])
+
+    # Adding another stride  down the middle based on empirical findings
+    if width // 2 + cnn_input_size // 2 <= width:
+        w_span = (width // 2 - cnn_input_size // 2, width // 2 + cnn_input_size // 2)
+        for h in range(height_crops):
+            h_span = (h * cnn_input_size, (h + 1) * cnn_input_size)
+            crops.append([img[h_span[0]:h_span[1], w_span[0]:w_span[1]], h_span, w_span, "name_placeholder"])
     return crops
+
 
 def replace_image_with_crops(image_path, crops):
     """
@@ -114,7 +126,7 @@ def process_image(image_path):
     resized_image = resize_image_to_dims(img, (new_width, new_height))
     crops = divide_image_into_crops(resized_image)
     paths_to_crops, crop_to_orig, orig_to_crop = replace_image_with_crops(image_path, crops)
-    #resize_bbs_in_csv(image_path, width_multiplier, height_multiplier)
+    resize_bbs_in_csv(image_path, width_multiplier, height_multiplier)
     replace_images_with_crops_in_csv(paths_to_crops, crop_to_orig, orig_to_crop)
 
 def define_arguments(parser):
@@ -122,6 +134,7 @@ def define_arguments(parser):
                         default=Path(__file__).absolute().parent.parent / "Datasets/Japanese_Classics_Preprocessed/200021637/images/200021637-00014_2.jpg",
                         help="Path to the image file")
     return parser
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

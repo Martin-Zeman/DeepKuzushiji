@@ -1,6 +1,6 @@
 import pandas as pd
 from pandas.errors import ParserError
-from utils import get_book_id, get_image_name
+from utils import get_book_id, get_image_name, is_fully_within_crop
 from file_iterator import FileIterator
 import os
 
@@ -65,17 +65,24 @@ def replace_images_with_crops_in_csv(image_path_to_crops, crop_to_orig, orig_to_
             print(f"Fatal Error while parsing file {csv_path}. Original not replaced with crops for {image_path}!")
             return
         image_name = get_image_name(image_path)
-        image_data = df.loc[df.Image == image_name, ["Unicode", "X", "Y", "Width", "Height"]]
+        image_data = df.loc[df.Image == image_name, ["Unicode", "X", "Y", "Char ID", "Width", "Height"]]
         df.drop(df.Image == image_name, axis=0)
 
         crops = image_path_to_crops[image_path]
-        for crop in crops:
-            crop_name = crop[-1]
-            height_span = crop[1]
-            weight_span = crop[2]
-            # print(f"crop name  =  {crop_name}")
-            # print(f"height span = {height_span}")
-            # print(f"weight span = {weight_span}")
-            for _, row in image_data.iterrows():
-                print(f"Unicode {row['Unicode']} X {row['X']} Y {row['Y']} Height {row['Height']} Width {row['Width']}")
-                # TODO
+        for _, row in image_data.iterrows():
+            for crop in crops:
+                crop_name = crop[-1]
+                height_span = crop[1]
+                width_span = crop[2]
+                # print(f"crop name  =  {crop_name}")
+                # print(f"height span = {height_span}")
+                # print(f"width span = {width_span}")
+                # print(f"Unicode {row['Unicode']} X {row['X']} Y {row['Y']} Width {row['Width']} Height {row['Height']}")
+                if is_fully_within_crop((width_span, height_span), (row['X'], row['Y']), (row['Width'], row['Height'])):
+                    print(f"Character {row['Char ID']} is within crop {crop_name} where width span = {width_span} height span = {height_span}")
+                    break
+            else:
+                print(f"Character {row['Char ID']} didn't fit anywhere")
+                # TODO I need to watch the YOLO videos again to find out if having the same character appear in multiple
+                #  crops is a problem. Or alternatively not marking (and thus learning) all the characters in a crop
+                #  because I used them in a different crop. Also I need to have a look at the encoding in general again.
