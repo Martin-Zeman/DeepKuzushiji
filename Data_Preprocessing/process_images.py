@@ -129,6 +129,16 @@ def process_image(image_path):
     resize_bbs_in_csv(image_path, width_multiplier, height_multiplier)
     replace_images_with_crops_in_csv(paths_to_crops, crop_to_orig, orig_to_crop)
 
+
+def process_image_for_darknet(image_path):
+    """Main function representing the processing pipeline for a single image for the darknet use-case."""
+    img = cv2.imread(image_path)
+    new_width, new_height, width_multiplier, height_multiplier = get_new_dims(img, 1248, 416)
+    resized_image = resize_image_to_dims(img, (new_width, new_height))
+    resize_bbs_in_csv(image_path, width_multiplier, height_multiplier)
+    cv2.imwrite(image_path, resized_image)
+
+
 def define_arguments(parser):
     parser.add_argument("-i", "--image", type=Path,
                         default=Path(__file__).absolute().parent.parent / "Datasets/Japanese_Classics_Preprocessed/200021637/images/200021637-00014_2.jpg",
