@@ -40,6 +40,13 @@ def delete_images(images):
             print(f"Cannot delete {image}!")
     print("Finished deleting images!")
 
+def get_corresponding_txt_file_paths(image_paths):
+    txt_file_paths = []
+    for image_path in image_paths:
+        path, _ = os.path.splitext(image_path)
+        txt_file_paths.append(path + ".txt")
+    return txt_file_paths
+
 
 def is_fully_within_crop(crop_spans, character_xy, character_dims):
     ret = False

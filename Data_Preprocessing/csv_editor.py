@@ -40,6 +40,23 @@ def get_csv_path_from_image_path(image_path):
     return csv_path
 
 
+def get_bounding_boxes(image_path):
+    """
+    Retrieves all the bounding boxes for a single image in the original format
+    :param image_path:
+    :return: pandas data frame of format (character unicode, x, y, width, height)
+    """
+    csv_path = get_csv_path_from_image_path(image_path)
+    try:
+        df = pd.read_csv(csv_path, encoding='ISO-8859-1')
+    except ParserError:
+        print(f"Fatal Error while parsing file {csv_path}. bounding boxes cannot be retrieved for {image_path}!")
+        return
+    image_name = get_image_name(image_path)
+    image_data = df.loc[df.Image == image_name, ["Unicode", "X", "Y", "Width", "Height"]]
+    return image_data
+
+
 def resize_bbs_in_csv(image_path, multiplier_w, multiplier_h):
     csv_path = get_csv_path_from_image_path(image_path)
     try:

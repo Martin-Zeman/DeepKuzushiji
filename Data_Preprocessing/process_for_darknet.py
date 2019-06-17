@@ -4,13 +4,13 @@ from aspect_ratios import get_aspect_ratios
 import argparse
 from pathlib import Path
 import numpy as np
-from utils import reject_outliers, get_statistics, delete_images
+from utils import *
 from distutils import dir_util
 import time
 from threading import Thread
-from csv_editor import erase_references
-
-from file_iterator import DirectoryIterator
+from csv_editor import get_bounding_boxes
+from process_images import process_image_for_darknet
+from file_iterator import DirectoryIterator, FileIterator
 
 
 class TreeCopyThread(Thread):
@@ -61,6 +61,19 @@ def test_train_split():
 def save_paths_to_file(path_list, output_path):
     None
 
+def get_image_paths(root_dir):
+    """
+    Returns a list of paths to all the images in the root_dir recursively.
+    :param root_dir: starting point of the search for all 'characters' subdirectories
+    :return: list of image paths under the root_dir
+    """
+    paths = []
+    images = FileIterator(root_dir, ignore_list=["characters"])
+    for image in images:
+        paths.append(image)
+    return paths
+
+
 def define_arguments(parser):
     parser.add_argument("-d", "--dir", type=Path,
                         default=Path(__file__).absolute().parent.parent / "Datasets/Japanese_Classics",
@@ -97,4 +110,16 @@ if __name__ == "__main__":
 
     classes = create_class_directory(args.dir)
     print(len(classes))
+    img_paths = get_image_paths(args.dir)
+    txt_paths = get_corresponding_txt_file_paths(img_paths)
+
+    for img_path, index in enumerate(img_paths):
+        process_image_for_darknet(img_path)
+        bb_df = get_bounding_boxes(img_path)
+        # TODO: Convert the x,y,width and height into the relative numbers and write them into the txt files
+
+    # Test it out
+    print(img_paths[50])
+    print(get_bounding_boxes(img_paths[50]))
+
 

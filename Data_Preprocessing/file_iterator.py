@@ -3,7 +3,7 @@ import os
 class FileIterator:
     """Iterates over all files in a directory subtree specified in the constructor. It navigates in a BFS manner.
     @param root_dir - root directory where the search is started
-    @param extension - all files expect the ones with this extension will be ignored
+    @param extension - only files with this extension will be iterated over
     @param must_contain - any file with a basename not containing this will be ignored
     @param ignore_list - list of directory names not to be searched
     """
