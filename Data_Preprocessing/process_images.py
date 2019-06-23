@@ -15,7 +15,7 @@ def get_new_dims(img, max_h=1248, cnn_input_size=416):
     :return:
     """
     h, w, _ = img.shape
-    assert h > max_h, "Height of an image unexpectedly small!"
+    assert h >= max_h, "Height of an image unexpectedly small!"
     factor = h / max_h
     new_w = w / factor
     w_mul = new_w // cnn_input_size
@@ -131,12 +131,21 @@ def process_image(image_path):
 
 
 def process_image_for_darknet(image_path):
-    """Main function representing the processing pipeline for a single image for the darknet use-case."""
-    img = cv2.imread(image_path)
+    """
+    Main function representing the processing pipeline for a single image for the darknet use-case.
+    :param image_path: path to the image to process
+    :return: new_width, new_height of the processed image
+    """
+    try:
+        img = cv2.imread(image_path)
+    except TypeError:
+        print(f"Cannot read image {image_path}! Skipping it!")
+        return
     new_width, new_height, width_multiplier, height_multiplier = get_new_dims(img, 1248, 416)
     resized_image = resize_image_to_dims(img, (new_width, new_height))
     resize_bbs_in_csv(image_path, width_multiplier, height_multiplier)
     cv2.imwrite(image_path, resized_image)
+    return new_width, new_height
 
 
 def define_arguments(parser):
