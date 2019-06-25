@@ -11,7 +11,7 @@ from threading import Thread
 from csv_editor import get_bounding_boxes, erase_references
 from process_images import process_image_for_darknet
 from file_iterator import DirectoryIterator, FileIterator
-
+import random
 
 class TreeCopyThread(Thread):
     def __init__(self, src, dest):
@@ -46,14 +46,16 @@ def create_class_directory(root_dir):
     :return:
     """
     class_num_to_char = {}
+    char_to_class_num = {}
     dirs = DirectoryIterator(root_dir, must_contain="U+", ignore_list=["images"])
     class_counter = 0
     for dir in dirs:
-        if dir not in class_num_to_char.keys():
-            class_num_to_char[dir] = class_counter
+        if dir not in char_to_class_num.keys():
+            char_to_class_num[dir] = class_counter
+            class_num_to_char[class_counter] = dir
             class_counter += 1
 
-    return class_num_to_char
+    return class_num_to_char, char_to_class_num
 
 def test_train_split():
     None
@@ -90,6 +92,39 @@ def convert_bb_to_relative_numbers(df, image_width, image_height):
     df.loc[:, "Height"] /= image_height
     return df
 
+def convert_chars_to_classes(df, char_to_class_dict):
+    """
+    Uses the char_to_class dict to replace the character unicodes in the first column of the dataframe with their
+    respective class numbers.
+    :param df:
+    :param char_to_class_dict:
+    :return: converted dataframe
+    """
+    df["Unicode"].replace(char_to_class_dict, inplace=True)
+    is_missing = df.isnull().values.any()
+    assert not is_missing, "Fatal Error! Found NaN in the Unicode column of a dataframe!"
+    return df
+
+def create_test_and_train_files(img_paths, train_percentage, out_dir):
+    """
+    Creates the test.txt and train.txt files required by darknet.
+    :param img_paths: paths to all the images to be trained/tested on
+    :param train_percentage: floating point number between 0 < x < 1.0
+    :param out_dir: Path type directory where the train.txt and test.txt are to be created
+    :return:
+    """
+    assert 0 < train_percentage < 1.0, "Invalid train percentage value!"
+    train_path = str((out_dir / "train.txt").resolve())
+    test_path = str((out_dir / "test.txt").resolve())
+    with open(train_path, "w") as f_train:
+        with open(test_path, "w") as f_test:
+            for img in img_paths:
+                belongs_to_train_set = random.uniform(0.0, 1.0) <= train_percentage
+                if belongs_to_train_set:
+                    f_train.write(img + "\n")
+                else:
+                    f_test.write(img + "\n")
+
 
 def define_arguments(parser):
     parser.add_argument("-d", "--dir", type=Path,
@@ -100,7 +135,7 @@ def define_arguments(parser):
                         help="Output path to the root of the preprocessed dataset directory")
     parser.add_argument("-c", "--copy", dest='copy', action='store_true')
     parser.set_defaults(copy=False)
-    parser.add_argument("-i", "--ignore", nargs="*", type=str)
+    parser.add_argument("-i", "--ignore", nargs="*", type=str, default=[])
     return parser
 
 
@@ -117,27 +152,27 @@ if __name__ == "__main__":
         progress.start()
         progress.join()
 
-    # aspect_ratios, image_names = get_aspect_ratios(args.out, args.ignore)
-    # aspect_ratios_filtered, rejected_indices = reject_outliers(aspect_ratios)
-    # mean_val, _, _ = get_statistics(aspect_ratios_filtered)
-    #
-    # rejected_images_paths = image_names[rejected_indices]
-    # erase_references(str(args.out), rejected_images_paths)
-    # delete_images(rejected_images_paths)
+    aspect_ratios, image_names = get_aspect_ratios(args.out, args.ignore)
+    aspect_ratios_filtered, rejected_indices = reject_outliers(aspect_ratios)
+    mean_val, _, _ = get_statistics(aspect_ratios_filtered)
 
-    classes = create_class_directory(args.dir)
-    print(len(classes))
-    img_paths = get_image_paths(args.dir)
+    rejected_images_paths = image_names[rejected_indices]
+    erase_references(str(args.out), rejected_images_paths)
+    delete_images(rejected_images_paths)
+
+    _, char_to_class = create_class_directory(args.out)
+    print(len(char_to_class))
+    img_paths = get_image_paths(args.out)
     txt_paths = get_corresponding_txt_file_paths(img_paths)
 
-    counter = 0
+    num_images = len(img_paths)
     for index, img_path in enumerate(img_paths):
         new_width, new_height = process_image_for_darknet(img_path)
         bb_df = get_bounding_boxes(img_path)
-        if counter == 50:
-            print(bb_df)
         relative_bb_df = convert_bb_to_relative_numbers(bb_df, new_width, new_height)
-        if counter == 50:
-            print(relative_bb_df)
-        counter += 1
+        relative_bb_df = convert_chars_to_classes(relative_bb_df, char_to_class)
+        np.savetxt(txt_paths[index], relative_bb_df.values, fmt="%i %.18e %.18e %.18e %.18e")
+        print(f"Processed {index + 1}/{num_images}")
+    create_test_and_train_files(img_paths, 0.9, args.out)
+    print("Done!")
 

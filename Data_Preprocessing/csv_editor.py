@@ -30,13 +30,21 @@ def erase_references(root_dir, image_paths):
     print(f"Finished deleting references!")
 
 def get_csv_path_from_image_path(image_path):
-    # TODO: look if there's a better way to do the joining
     dir = os.path.split(image_path)
     dir_of_csv = dir[0].split("/")[0:-1]
     dir_of_csv = "/".join(dir_of_csv)
     book_id = get_book_id(image_path)
     csv_filename = "".join([book_id, "_coordinate.csv"])
     csv_path = "/".join([dir_of_csv, csv_filename])
+
+    # Deal with the exceptions
+    if ("brsk" in image_path):
+        return "/".join([dir_of_csv, "brsk00000_coordinate.csv"])
+    if ("hnsd" in image_path):
+        return "/".join([dir_of_csv, "hnsd00000_coordinate.csv"])
+    if ("umgy" in image_path):
+        return "/".join([dir_of_csv, "umgy00000_coordinate.csv"])
+
     return csv_path
 
 
