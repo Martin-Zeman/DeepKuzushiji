@@ -41,10 +41,19 @@ def delete_images(images):
     print("Finished deleting images!")
 
 def get_corresponding_txt_file_paths(image_paths):
+    """
+    Creates a corresponding txt file path for each image path from the given list where the txt file shares the same
+    basename as each image. Its location is ../labels/ relative to each image file.
+    :param image_paths: list of image paths
+    :return: list of txt file paths
+    """
     txt_file_paths = []
     for image_path in image_paths:
+        img_root_dir = os.path.abspath(os.path.join(os.path.dirname(image_path), '..'))
         path, _ = os.path.splitext(image_path)
-        txt_file_paths.append(path + ".txt")
+        img_name = os.path.basename(os.path.normpath(path))
+        txt_file_path = os.path.join(img_root_dir, 'labels', img_name + '.txt')
+        txt_file_paths.append(txt_file_path)
     return txt_file_paths
 
 

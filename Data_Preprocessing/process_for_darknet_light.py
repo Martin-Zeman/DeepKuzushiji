@@ -41,21 +41,28 @@ class ProgressThread(Thread):
 
 def create_class_directory(root_dir):
     """
-    Creates a dictionary mapping from a class number 0..n and their respective character codes
+    Creates three dictionaries:
+    - dictionary mapping from a class number 0..n and their respective character codes.
+    - dictionary mapping from character code to its respective class number
+    - dictioanry mapping from character code to its frequency of usage
     :param root_dir: starting point of the search for all 'characters' subdirectories
     :return:
     """
     class_num_to_char = {}
     char_to_class_num = {}
+    char_to_freq = {}
     dirs = DirectoryIterator(root_dir, must_contain="U+", ignore_list=["images"])
     class_counter = 0
     for dir in dirs:
         if dir not in char_to_class_num.keys():
             char_to_class_num[dir] = class_counter
+            char_to_freq[dir] = 1
             class_num_to_char[class_counter] = dir
             class_counter += 1
+        else:
+            char_to_freq[dir] += 1
 
-    return class_num_to_char, char_to_class_num
+    return class_num_to_char, char_to_class_num, char_to_freq
 
 
 def get_image_paths(root_dir):
@@ -160,6 +167,14 @@ def define_arguments(parser):
     parser.add_argument("-i", "--ignore", nargs="*", type=str, default=[])
     return parser
 
+def find_all_imgs_using_character(char):
+    None
+    #TODO only use this this select a couple of images and delete all the rest.
+
+def sort_characters_by_frequency(char_to_freq):
+    None
+    # TODO use the char_to_freq output of the create_class_directory
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -182,7 +197,7 @@ if __name__ == "__main__":
     erase_references(str(args.out), rejected_images_paths)
     delete_images(rejected_images_paths)
 
-    _, char_to_class = create_class_directory(args.out)
+    _, char_to_class, char_to_freq = create_class_directory(args.out)
     img_paths = get_image_paths(args.out)
     txt_paths = get_corresponding_txt_file_paths(img_paths)
 
