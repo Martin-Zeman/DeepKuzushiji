@@ -39,9 +39,10 @@ class DirectoryIterator:
     @param ignore_list - list of directory names not to be searched
     """
 
-    def __init__(self, root_dir=None, must_contain=None, ignore_list=[]):
+    def __init__(self, root_dir=None, must_contain=None, include_absolute=False, ignore_list=[]):
         self.root_dir = root_dir
         self.must_contain = must_contain
+        self.include_absolute = include_absolute
         self.ignore_list = ignore_list
 
     def __iter__(self):
@@ -53,6 +54,6 @@ class DirectoryIterator:
             if os.path.isdir(item_path):
                 if item not in self.ignore_list:
                     if self.must_contain in item:
-                        yield item
-                    yield from DirectoryIterator(item_path, self.must_contain, self.ignore_list)
+                        yield (item, item_path) if self.include_absolute else item
+                    yield from DirectoryIterator(item_path, self.must_contain, self.include_absolute, self.ignore_list)
         raise StopIteration

@@ -12,6 +12,7 @@ from csv_editor import get_bounding_boxes, erase_references
 from process_images import process_image_for_darknet
 from file_iterator import DirectoryIterator, FileIterator
 import random
+import operator
 
 class TreeCopyThread(Thread):
     def __init__(self, src, dest):
@@ -51,16 +52,17 @@ def create_class_directory(root_dir):
     class_num_to_char = {}
     char_to_class_num = {}
     char_to_freq = {}
-    dirs = DirectoryIterator(root_dir, must_contain="U+", ignore_list=["images"])
+    dirs = DirectoryIterator(root_dir, must_contain="U+", include_absolute=True, ignore_list=["images"])
     class_counter = 0
     for dir in dirs:
+        dir, dir_absolute = dir
         if dir not in char_to_class_num.keys():
             char_to_class_num[dir] = class_counter
-            char_to_freq[dir] = 1
+            char_to_freq[dir] = len(os.listdir(dir_absolute))
             class_num_to_char[class_counter] = dir
             class_counter += 1
         else:
-            char_to_freq[dir] += 1
+            char_to_freq[dir] += len(os.listdir(dir_absolute))
 
     return class_num_to_char, char_to_class_num, char_to_freq
 
@@ -160,7 +162,7 @@ def define_arguments(parser):
                         default=Path(__file__).absolute().parent.parent / "Datasets/Japanese_Classics",
                         help="Path to the root dataset directory")
     parser.add_argument("-o", "--out", type=Path,
-                        default=Path(__file__).absolute().parent.parent / "Datasets/Japanese_Classics_Darknet",
+                        default=Path(__file__).absolute().parent.parent / "Datasets/Japanese_Classics_Darknet_Light",
                         help="Output path to the root of the preprocessed dataset directory")
     parser.add_argument("-c", "--copy", dest='copy', action='store_true')
     parser.set_defaults(copy=False)
@@ -172,8 +174,11 @@ def find_all_imgs_using_character(char):
     #TODO only use this this select a couple of images and delete all the rest.
 
 def sort_characters_by_frequency(char_to_freq):
-    None
-    # TODO use the char_to_freq output of the create_class_directory
+    """
+    :param char_to_freq:
+    :return: A list of tuples representing the original dictionary sorted in descending order by the dict values
+    """
+    return sorted(char_to_freq.items(), reverse=True, key=operator.itemgetter(1))
 
 
 if __name__ == "__main__":
@@ -182,35 +187,39 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Make a copy to be processed if needed
-    if args.copy:
-        copy_thread = TreeCopyThread(str(args.dir), str(args.out))
-        progress = ProgressThread(copy_thread)
-        copy_thread.start()
-        progress.start()
-        progress.join()
+    # if args.copy:
+    #     copy_thread = TreeCopyThread(str(args.dir), str(args.out))
+    #     progress = ProgressThread(copy_thread)
+    #     copy_thread.start()
+    #     progress.start()
+    #     progress.join()
 
-    aspect_ratios, image_names = get_aspect_ratios(args.out, args.ignore)
-    aspect_ratios_filtered, rejected_indices = reject_outliers(aspect_ratios)
-    mean_val, _, _ = get_statistics(aspect_ratios_filtered)
+    # aspect_ratios, image_names = get_aspect_ratios(args.out, args.ignore)
+    # aspect_ratios_filtered, rejected_indices = reject_outliers(aspect_ratios)
+    # mean_val, _, _ = get_statistics(aspect_ratios_filtered)
+    #
+    # rejected_images_paths = image_names[rejected_indices]
+    # erase_references(str(args.out), rejected_images_paths)
+    # delete_images(rejected_images_paths)
 
-    rejected_images_paths = image_names[rejected_indices]
-    erase_references(str(args.out), rejected_images_paths)
-    delete_images(rejected_images_paths)
-
-    _, char_to_class, char_to_freq = create_class_directory(args.out)
-    img_paths = get_image_paths(args.out)
+    _, char_to_class, char_to_freq = create_class_directory(args.dir)#changed from out to dir
+    img_paths = get_image_paths(args.dir)#changed from out to dir
     txt_paths = get_corresponding_txt_file_paths(img_paths)
 
-    num_images = len(img_paths)
-    for index, img_path in enumerate(img_paths):
-        new_width, new_height = process_image_for_darknet(img_path)
-        bb_df = get_bounding_boxes(img_path)
-        relative_bb_df = convert_bb_to_relative_numbers(bb_df, new_width, new_height)
-        relative_bb_df = convert_chars_to_classes(relative_bb_df, char_to_class)
-        np.savetxt(txt_paths[index], relative_bb_df.values, fmt="%i %.18e %.18e %.18e %.18e")
-        print(f"Processed {index + 1}/{num_images}")
-    create_test_and_train_files(img_paths, 0.9, args.out / "cfg")
-    create_names_file(char_to_class, args.out / "cfg")
-    create_data_file(char_to_class, args.out / "cfg")
+    sorted_char_to_freq = sort_characters_by_frequency(char_to_freq)
+
+    print(sorted_char_to_freq[:10])
+
+    # num_images = len(img_paths)
+    # for index, img_path in enumerate(img_paths):
+    #     new_width, new_height = process_image_for_darknet(img_path)
+    #     bb_df = get_bounding_boxes(img_path)
+    #     relative_bb_df = convert_bb_to_relative_numbers(bb_df, new_width, new_height)
+    #     relative_bb_df = convert_chars_to_classes(relative_bb_df, char_to_class)
+    #     np.savetxt(txt_paths[index], relative_bb_df.values, fmt="%i %.18e %.18e %.18e %.18e")
+    #     print(f"Processed {index + 1}/{num_images}")
+    # create_test_and_train_files(img_paths, 0.9, args.out / "cfg")
+    # create_names_file(char_to_class, args.out / "cfg")
+    # create_data_file(char_to_class, args.out / "cfg")
     print("Done!")
 
