@@ -3,31 +3,8 @@ from pandas.errors import ParserError
 from utils import get_book_id, get_image_name, is_fully_within_crop
 from file_iterator import FileIterator
 import os
+import itertools
 
-
-def erase_references(root_dir, image_paths):
-    image_book_ids = [get_book_id(x) for x in image_paths]
-    image_names = [get_image_name(x) for x in image_paths]
-
-    files = FileIterator(root_dir, extension=".csv", must_contain="coordinate", ignore_list=["characters", "images"])
-    for file in files:
-        try:
-            df = pd.read_csv(file, encoding='ISO-8859-1')
-        except ParserError:
-            print(f"Error parsing file {file}. Fix the file manually.")
-
-        # Get rid of Unnamed columns
-        column_names = list(df.columns.values)
-        columns_to_delete = [x for x in column_names if "Unnamed" in x]
-        for column in columns_to_delete:
-            df = df.drop(column, axis=1)
-
-        for i, book_id in enumerate(image_book_ids):
-            if book_id in file:
-                # The image doesn't necessarily have to be referenced if there's no kanji in it
-                df = df[df.Image != image_names[i]]
-        df.to_csv(file, encoding='ISO-8859-1')
-    print(f"Finished deleting references!")
 
 def get_csv_path_from_image_path(image_path):
     dir = os.path.split(image_path)
@@ -46,6 +23,61 @@ def get_csv_path_from_image_path(image_path):
         return "/".join([dir_of_csv, "umgy00000_coordinate.csv"])
 
     return csv_path
+
+
+def get_image_path_from_image_name_and_csv_path(image_name, csv_path):
+    dir = os.path.split(csv_path)
+    return "/".join([dir[0], "images", image_name + ".jpg"])
+
+
+def get_all_img_paths_for_char(root_dir, char):
+    """
+    :param root_dir: starting point for the search. All csv coordinate files under this directory will be searched.
+    :param char: char to search for
+    :return: list of all image paths which contain a given char
+    """
+    files = FileIterator(root_dir, extension=".csv", must_contain="coordinate", ignore_list=["characters", "images"])
+    result = []
+    for file in files:
+        try:
+            df = pd.read_csv(file, encoding='ISO-8859-1')
+        except ParserError:
+            print(f"Error parsing file {file}. Fix the file manually.")
+            continue
+        df_temp = df.loc[df.Unicode == char, ["Image"]]
+        df_temp = df_temp.drop_duplicates()
+        list_of_lists = df_temp.values.tolist()
+        unrolled_list = list(itertools.chain.from_iterable(list_of_lists))
+
+        image_paths = [get_image_path_from_image_name_and_csv_path(img_name, file) for img_name in unrolled_list]
+        result.extend(image_paths)
+    return result
+
+
+def erase_references(root_dir, image_paths):
+    image_book_ids = [get_book_id(x) for x in image_paths]
+    image_names = [get_image_name(x) for x in image_paths]
+
+    files = FileIterator(root_dir, extension=".csv", must_contain="coordinate", ignore_list=["characters", "images"])
+    for file in files:
+        try:
+            df = pd.read_csv(file, encoding='ISO-8859-1')
+        except ParserError:
+            print(f"Error parsing file {file}. Fix the file manually.")
+            continue
+
+        # Get rid of Unnamed columns
+        column_names = list(df.columns.values)
+        columns_to_delete = [x for x in column_names if "Unnamed" in x]
+        for column in columns_to_delete:
+            df = df.drop(column, axis=1)
+
+        for i, book_id in enumerate(image_book_ids):
+            if book_id in file:
+                # The image doesn't necessarily have to be referenced if there's no kanji in it
+                df = df[df.Image != image_names[i]]
+        df.to_csv(file, encoding='ISO-8859-1')
+    print(f"Finished deleting references!")
 
 
 def get_bounding_boxes(image_path):

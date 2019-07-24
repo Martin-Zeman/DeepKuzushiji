@@ -8,7 +8,7 @@ from utils import *
 from distutils import dir_util
 import time
 from threading import Thread
-from csv_editor import get_bounding_boxes, erase_references
+from csv_editor import get_bounding_boxes, erase_references, get_all_img_paths_for_char
 from process_images import process_image_for_darknet
 from file_iterator import DirectoryIterator, FileIterator
 import random
@@ -169,9 +169,6 @@ def define_arguments(parser):
     parser.add_argument("-i", "--ignore", nargs="*", type=str, default=[])
     return parser
 
-def find_all_imgs_using_character(char):
-    None
-    #TODO only use this this select a couple of images and delete all the rest.
 
 def sort_characters_by_frequency(char_to_freq):
     """
@@ -209,6 +206,8 @@ if __name__ == "__main__":
     sorted_char_to_freq = sort_characters_by_frequency(char_to_freq)
 
     print(sorted_char_to_freq[:10])
+
+    print(get_all_img_paths_for_char(args.dir, sorted_char_to_freq[0][0]))
 
     # num_images = len(img_paths)
     # for index, img_path in enumerate(img_paths):
